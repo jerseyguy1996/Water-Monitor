@@ -10,6 +10,7 @@ boolean add_salt_flag = false; //add salt request sent to user..wait for flag to
 boolean mix_saltwater_flag = false; //saltwater mixing in process
 boolean drain_sump_flag = false; //sump draining in process
 boolean fill_sump_from_reservoir_flag = false; //sump filling in process
+boolean dosing_pump_one_flag = false;//dosing in process
 int wc_stage = 0;
 const int freshwater_high_float_switch = 2;
 const int freshwater_fill_float_switch = 3;
@@ -21,13 +22,16 @@ const int sump_fill_float_switch = 8;
 const int sump_low_float_switch = 9;
 const int salt_added_button = 10;
 const int fresh_to_sump_pump = 12;
-const int fresh_to_salt_pump = 13;
+//const int fresh_to_salt_pump = 13;
+const int dosing_one = 13;
 const int sump_to_drain_pump = 14;
 const int salt_to_sump_pump = 15;
 const int freshwater_relay_valve = 19;
 const int saltwater_mixer = 17;
 unsigned long mixTime;
 unsigned long sump_fill;
+unsigned long dosing_pump_one_time;
+
 
 
 
@@ -49,6 +53,7 @@ void setup()
     pinMode(i,OUTPUT);
     digitalWrite(i, relayOff);
   }
+  dosing_pump_one_time = millis() + 3600000UL;
   
 }
 
@@ -56,7 +61,8 @@ void loop()
 {
   freshwater_level();
   sump_level();
-  water_change();
+  //water_change();
+  dosing_pump_one();
 }
 
 
@@ -141,139 +147,158 @@ void sump_level()
 }
 
 
-void water_change()
+//void water_change()
+//{
+//  
+//  if(water_change_flag == true)
+//  {
+//    switch(wc_stage)
+//    {
+//      case 0: //top off freshwater reservoir
+//       if(freshwater_fill_flag == false && 
+//       digitalRead(freshwater_high_float_switch) == false)
+//        {
+//          freshwater_fill_flag = true;
+//          digitalWrite(freshwater_relay_valve, relayOn); //turns the water on
+//        }
+//        
+//        if(digitalRead(freshwater_high_float_switch) == true)
+//        {
+//          wc_stage = 1;
+//        }
+//        break;
+//        
+//      case 1: //fill saltwater reservoir
+//        if(digitalRead(freshwater_low_float_switch) == false && 
+//         saltwater_fill_flag == true)
+//        {
+//          digitalWrite(fresh_to_salt_pump, relayOff);
+//          saltwater_fill_flag = false;
+//          break;
+//        }
+//        if(digitalRead(saltwater_high_float_switch) == false &&
+//        saltwater_fill_flag == false && 
+//        digitalRead(freshwater_low_float_switch) == true)
+//        {
+//          saltwater_fill_flag = true;
+//          digitalWrite(fresh_to_salt_pump, relayOn);
+//        }
+//        if(digitalRead(saltwater_high_float_switch) == true)
+//        {
+//          saltwater_fill_flag = false;
+//          digitalWrite(fresh_to_salt_pump, relayOff);
+//          wc_stage = 2;
+//        }
+//        break;
+//        
+//      case 2: //add salt
+//        if(add_salt_flag == false)
+//        { 
+//          Serial.println("Add Salt = True");
+//          add_salt_flag = true;
+//        }
+//        if(digitalRead(salt_added_button) == false) //push when salt is added
+//        {
+//          add_salt_flag = false;
+//          wc_stage = 3;
+//        }
+//        break;
+//        
+//      case 3: //mix saltwater for 10 Hours
+//        if(mix_saltwater_flag == false)
+//        {
+//          mix_saltwater_flag = true;
+//          mixTime = millis() + 36000000UL;
+//          digitalWrite(saltwater_mixer, relayOn);
+//        }
+//        
+//        if(timer(mixTime))
+//        {
+//          mix_saltwater_flag = false;
+//          digitalWrite(saltwater_mixer, relayOff);
+//          wc_stage = 4;
+//        }
+//        break;
+//        
+//      case 4: //top off sump
+//        if(digitalRead(sump_high_float_switch) == false && 
+//         sump_fill_flag == false && 
+//         digitalRead(freshwater_low_float_switch) == true)
+//        {
+//          sump_fill_flag = true;
+//          digitalWrite(fresh_to_sump_pump, relayOn);
+//        }
+//        
+//        if(digitalRead(sump_high_float_switch) == true)
+//        {
+//          wc_stage = 5;
+//        }
+//        break;
+//        
+//      case 5: //drain sump
+//        if(drain_sump_flag == false) 
+//        {
+//          drain_sump_flag = true;
+//          digitalWrite(sump_to_drain_pump, relayOn);
+//        }
+//        if(digitalRead(sump_low_float_switch) == false)
+//        {
+//          digitalWrite(sump_to_drain_pump, relayOff);
+//          wc_stage = 6;
+//        }
+//        break;
+//        
+//      case 6: //fill sump but don't let the saltwater reservoir run dry
+//        if(fill_sump_from_reservoir_flag == true &&
+//        digitalRead(saltwater_low_float_switch == false))
+//        {
+//          fill_sump_from_reservoir_flag = false;
+//          digitalWrite(salt_to_sump_pump, relayOff);
+//        }
+//        
+//        if(fill_sump_from_reservoir_flag == false && 
+//        digitalRead(saltwater_low_float_switch == true))
+//        {
+//          fill_sump_from_reservoir_flag = true;
+//          digitalWrite(salt_to_sump_pump, relayOn);
+//        }
+//        
+//        if(digitalRead(sump_high_float_switch) == true)
+//        {
+//          digitalWrite(salt_to_sump_pump, relayOff);
+//          drain_sump_flag = false;
+//          wc_stage = 7;
+//        }
+//        break;
+//        
+//      case 7: //clean up
+//        //send message to user notifying them of a completed water change
+//        wc_stage = 0;
+//        water_change_flag = false;
+//        
+//    }
+//  }
+//  
+//  
+//}
+
+//run the dosing pump for 12.677 seconds every hour.  This should dose 40ml of 
+//each solution per day.
+void dosing_pump_one()
 {
-  
-  if(water_change_flag == true)
+  if(dosing_pump_one_flag == false && timer(dosing_pump_one_time))
   {
-    switch(wc_stage)
-    {
-      case 0: //top off freshwater reservoir
-       if(freshwater_fill_flag == false && 
-       digitalRead(freshwater_high_float_switch) == false)
-        {
-          freshwater_fill_flag = true;
-          digitalWrite(freshwater_relay_valve, relayOn); //turns the water on
-        }
-        
-        if(digitalRead(freshwater_high_float_switch) == true)
-        {
-          wc_stage = 1;
-        }
-        break;
-        
-      case 1: //fill saltwater reservoir
-        if(digitalRead(freshwater_low_float_switch) == false && 
-         saltwater_fill_flag == true)
-        {
-          digitalWrite(fresh_to_salt_pump, relayOff);
-          saltwater_fill_flag = false;
-          break;
-        }
-        if(digitalRead(saltwater_high_float_switch) == false &&
-        saltwater_fill_flag == false && 
-        digitalRead(freshwater_low_float_switch) == true)
-        {
-          saltwater_fill_flag = true;
-          digitalWrite(fresh_to_salt_pump, relayOn);
-        }
-        if(digitalRead(saltwater_high_float_switch) == true)
-        {
-          saltwater_fill_flag = false;
-          digitalWrite(fresh_to_salt_pump, relayOff);
-          wc_stage = 2;
-        }
-        break;
-        
-      case 2: //add salt
-        if(add_salt_flag == false)
-        { 
-          Serial.println("Add Salt = True");
-          add_salt_flag = true;
-        }
-        if(digitalRead(salt_added_button) == false) //push when salt is added
-        {
-          add_salt_flag = false;
-          wc_stage = 3;
-        }
-        break;
-        
-      case 3: //mix saltwater for 10 Hours
-        if(mix_saltwater_flag == false)
-        {
-          mix_saltwater_flag = true;
-          mixTime = millis() + 36000000UL;
-          digitalWrite(saltwater_mixer, relayOn);
-        }
-        
-        if(timer(mixTime))
-        {
-          mix_saltwater_flag = false;
-          digitalWrite(saltwater_mixer, relayOff);
-          wc_stage = 4;
-        }
-        break;
-        
-      case 4: //top off sump
-        if(digitalRead(sump_high_float_switch) == false && 
-         sump_fill_flag == false && 
-         digitalRead(freshwater_low_float_switch) == true)
-        {
-          sump_fill_flag = true;
-          digitalWrite(fresh_to_sump_pump, relayOn);
-        }
-        
-        if(digitalRead(sump_high_float_switch) == true)
-        {
-          wc_stage = 5;
-        }
-        break;
-        
-      case 5: //drain sump
-        if(drain_sump_flag == false) 
-        {
-          drain_sump_flag = true;
-          digitalWrite(sump_to_drain_pump, relayOn);
-        }
-        if(digitalRead(sump_low_float_switch) == false)
-        {
-          digitalWrite(sump_to_drain_pump, relayOff);
-          wc_stage = 6;
-        }
-        break;
-        
-      case 6: //fill sump but don't let the saltwater reservoir run dry
-        if(fill_sump_from_reservoir_flag == true &&
-        digitalRead(saltwater_low_float_switch == false))
-        {
-          fill_sump_from_reservoir_flag = false;
-          digitalWrite(salt_to_sump_pump, relayOff);
-        }
-        
-        if(fill_sump_from_reservoir_flag == false && 
-        digitalRead(saltwater_low_float_switch == true))
-        {
-          fill_sump_from_reservoir_flag = true;
-          digitalWrite(salt_to_sump_pump, relayOn);
-        }
-        
-        if(digitalRead(sump_high_float_switch) == true)
-        {
-          digitalWrite(salt_to_sump_pump, relayOff);
-          drain_sump_flag = false;
-          wc_stage = 7;
-        }
-        break;
-        
-      case 7: //clean up
-        //send message to user notifying them of a completed water change
-        wc_stage = 0;
-        water_change_flag = false;
-        
-    }
+    dosing_pump_one_flag = true;
+    digitalWrite(dosing_one,relayOn);
+    dosing_pump_one_time = millis() + 12677UL; //12.677 seconds
   }
   
-  
+  if(dosing_pump_one_flag == true && timer(dosing_pump_one_time))
+  {
+    dosing_pump_one_flag = false;
+    digitalWrite(dosing_one, relayOff);
+    dosing_pump_one_time = millis() + 3600000UL;
+  }
 }
 
 /*void check_for_instructions()
