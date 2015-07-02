@@ -54,7 +54,7 @@ void setup()
     digitalWrite(i, relayOff);
   }
   dosing_pump_one_time = millis() + 3600000UL;
-  
+  //dosing_pump_one_time = millis() + 10000UL;
 }
 
 void loop()
@@ -297,7 +297,8 @@ void dosing_pump_one()
   {
     dosing_pump_one_flag = false;
     digitalWrite(dosing_one, relayOff);
-    dosing_pump_one_time = millis() + 3600000UL;
+    dosing_pump_one_time = millis() + 3600000UL; //60 minutes
+    //dosing_pump_one_time = millis() + 10000UL; //10 seconds
   }
 }
 
